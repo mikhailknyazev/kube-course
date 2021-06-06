@@ -1,0 +1,70 @@
+
+# Values referenced from: https://github.com/kubernetes/autoscaler/blob/master/charts/cluster-autoscaler-chart/values.yaml
+awsRegion: ${region}
+
+nameOverride: ${name_override}
+fullnameOverride: ${name_override}
+
+image:
+  repository: us.gcr.io/k8s-artifacts-prod/autoscaling/cluster-autoscaler
+  tag: v1.20.0
+
+rbac:
+  create: true
+  serviceAccount:
+    create: true
+    annotations:
+      eks.amazonaws.com/role-arn: ${cluster_autoscaler_role_arn}
+
+autoDiscovery:
+  clusterName: ${cluster_name}
+
+extraArgs:
+
+  # Note: We do not skip the "kube-system" from the pods evictions candidates. The CA itself and other critical workloads
+  #       are running on the only non-spot host by design, so they are not considered for scale-in related eviction in any case.
+  # Orig docu: If true cluster autoscaler will never delete nodes with pods from kube-system (except for DaemonSet or mirror pods)
+  skip-nodes-with-system-pods: false
+
+  # If true cluster autoscaler will never delete nodes with pods with local storage, e.g. EmptyDir or HostPath
+  skip-nodes-with-local-storage: false
+
+  # We have only one replica of CA, so it is safe to disable leader election completely.
+  # This is to alleviate this issue  https://github.com/kubernetes/autoscaler/issues/1653
+  leader-elect: false
+
+  # CA will automatically identify node groups with the same instance type and the same
+  # set of labels (except for automatically added zone label) and try to keep the sizes of those node groups balanced.
+  #
+  # https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/FAQ.md#im-running-cluster-with-nodes-in-multiple-zones-for-ha-purposes-is-that-supported-by-cluster-autoscaler
+  #
+  # Note that its implementation has issues / specifics, e.g.:
+  # - See https://github.com/kubernetes/autoscaler/issues/2503#issuecomment-576896187
+  balance-similar-node-groups: true
+
+  # See "We had the same problem, changing the expander to random solved it."
+  # - https://github.com/kubernetes/autoscaler/issues/2503
+  expander: random
+
+  # Note: The default wait time before allowed scale-in is 10 minutes.
+  #       Uncomment the below for testing purposes -- to have scale-in faster.
+  scale-down-unneeded-time: 1m
+  scale-down-delay-after-add: 1m
+
+  # Logs verbosity:
+  #  -- https://github.com/kubernetes/community/blob/master/contributors/devel/sig-instrumentation/logging.md
+  v: 1
+
+resources:
+  limits:
+    cpu: 200m
+    memory: 400Mi
+  requests:
+    cpu: 200m
+    memory: 400Mi
+
+#extraEnv:
+#  http_proxy:
+#  https_proxy:
+#  no_proxy:
+

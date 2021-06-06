@@ -15,14 +15,6 @@ locals {
   primary_subnet_id = module.vpc.public_subnets[0]
   secondary_subnet_id = module.vpc.public_subnets[1]
 
-  common_instance_tags = [
-    {
-      key = "owner"
-      propagate_at_launch = "true"
-      value = "kube-course"
-    }
-  ]
-
   workload_regular_ec2_kubelet_extra_args  = "--node-labels=node.kubernetes.io/lifecycle=normal,role=${local.workload_logical_role_name}"
 
   tools_regular_ec2_kubelet_extra_args  = "--node-labels=node.kubernetes.io/lifecycle=normal,role=${local.tools_logical_role_name} --register-with-taints=${local.tools_logical_role_name}=true:NoSchedule"

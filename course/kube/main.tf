@@ -43,7 +43,23 @@ module "kube" {
       root_volume_type     = "gp2"
 
       kubelet_extra_args = local.workload_regular_ec2_kubelet_extra_args
-      tags = local.common_instance_tags
+      tags = [
+        {
+          key = "k8s.io/cluster-autoscaler/enabled"
+          propagate_at_launch = "false"
+          value = "true"
+        },
+        {
+          key = "k8s.io/cluster-autoscaler/${local.cluster_name}"
+          propagate_at_launch = "false"
+          value = "owned"
+        },
+        {
+          key = "owner"
+          propagate_at_launch = "true"
+          value = "kube-course"
+        }
+      ]
     },
     {
       name                 = "tools"
@@ -64,7 +80,15 @@ module "kube" {
 
       kubelet_extra_args = local.tools_regular_ec2_kubelet_extra_args
 
-      tags = local.common_instance_tags
+      // Note: we do NOT mark it with the "cluster-autoscaler" tags deliberately,
+      //       so that the "tools" node(s) are "invisible" for the Cluster Autoscaler.
+      tags = [
+        {
+          key = "owner"
+          propagate_at_launch = "true"
+          value = "kube-course"
+        }
+      ]
     }
   ]
 
