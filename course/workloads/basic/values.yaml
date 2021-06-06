@@ -5,7 +5,7 @@ awsAccount: # defined by the deployment script
 
 appName: basic
 
-replicaCount: 1
+replicaCount: 2
 
 serviceAccount:
   name: basic-service-account
