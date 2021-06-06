@@ -1,0 +1,19 @@
+
+nameOverride: ${name_override}
+fullnameOverride: ${name_override}
+serviceName: ${name_override}
+serviceAccount:
+  name: ${name_override}
+
+nodeSelector:
+  node.kubernetes.io/lifecycle: normal
+tolerations:
+  - key: ${system_ec2_logical_role_name}
+    operator: Equal
+    value: "true"
+    effect: NoExecute
+
+#// Note: we set the "aemm.spot.time" dynamically, when we run the tests using this EC2 Metadata Mock helm chart
+#aemm:
+#  spot:
+#    time: ""
