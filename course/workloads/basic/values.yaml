@@ -53,9 +53,7 @@ resources:
     cpu: 600m
 
 horizontalPodAutoscaler:
-  enabled: true
-  maxReplicas: 6
-  minReplicas: 2
+  enabled: false
 
 helmTest:
   enabled: true

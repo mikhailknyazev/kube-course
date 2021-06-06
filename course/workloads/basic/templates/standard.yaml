@@ -8,6 +8,5 @@
 {{- template "lib.service" . }}
 ---
 {{- template "lib.helmTest" . }}
----
-{{- template "lib.horizontalPodAutoscaler" . }}
+
 
