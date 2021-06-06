@@ -26,7 +26,7 @@ ingress:
 
 containerHealthChecks:
   readinessProbe:
-    failureThreshold: 1
+    failureThreshold: 2
     successThreshold: 1
     httpGet:
       path: /hello
@@ -35,7 +35,7 @@ containerHealthChecks:
     periodSeconds: 10
     timeoutSeconds: 5
   livenessProbe:
-    failureThreshold: 1
+    failureThreshold: 2
     successThreshold: 1
     httpGet:
       path: /hello
@@ -47,14 +47,14 @@ containerHealthChecks:
 resources:
   requests:
     memory: 256M
-    cpu: 128m
+    cpu: 550m
   limits:
     memory: 256M
     cpu: 600m
 
 horizontalPodAutoscaler:
   enabled: true
-  maxReplicas: 20
+  maxReplicas: 6
   minReplicas: 2
 
 helmTest:
