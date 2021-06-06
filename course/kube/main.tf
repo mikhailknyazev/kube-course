@@ -30,9 +30,9 @@ module "kube" {
       subnets              = [local.primary_subnet_id, local.secondary_subnet_id]
       instance_type        = local.regular_instance_type
 
-      asg_desired_capacity = 2
-      asg_min_size = 2
-      asg_max_size = 5
+      asg_desired_capacity = 1
+      asg_min_size = 1
+      asg_max_size = 1
 
       // Cost Savings
 //      asg_desired_capacity = 0
@@ -43,23 +43,14 @@ module "kube" {
       root_volume_type     = "gp2"
 
       kubelet_extra_args = local.workload_regular_ec2_kubelet_extra_args
-      tags = [
-        {
-          key = "k8s.io/cluster-autoscaler/enabled"
-          propagate_at_launch = "false"
-          value = "true"
-        },
-        {
-          key = "k8s.io/cluster-autoscaler/${local.cluster_name}"
-          propagate_at_launch = "false"
-          value = "owned"
-        },
-        {
-          key = "owner"
+      tags = concat(
+        local.workload_instance_tags,
+        [{
+          key = local.system_ec2_logical_role_name
           propagate_at_launch = "true"
-          value = "kube-course"
-        }
-      ]
+          value = "true"
+        }]
+      )
     },
     {
       name                 = "tools"
@@ -71,9 +62,9 @@ module "kube" {
       asg_max_size = 1
 
       // Cost Savings
-//      asg_desired_capacity = 0
-//      asg_min_size = 0
-//      asg_max_size = 0
+      //      asg_desired_capacity = 0
+      //      asg_min_size = 0
+      //      asg_max_size = 0
 
       public_ip            = true
       root_volume_type     = "gp2"
@@ -89,8 +80,64 @@ module "kube" {
           value = "kube-course"
         }
       ]
+    },
+    {
+      name                 = "spot-primary"
+      subnets              = [local.primary_subnet_id]
+      override_instance_types = local.spot_instance_types
+
+      spot_instance_pools = 0
+      spot_allocation_strategy = "capacity-optimized"
+
+      // Cost Savings
+      //      asg_desired_capacity = 0
+      //      asg_min_size = 0
+      //      asg_max_size = 0
+
+      asg_desired_capacity = 1
+      asg_min_size = 1
+      asg_max_size = 5
+
+      public_ip            = true
+      root_volume_type     = "gp2"
+
+      kubelet_extra_args = local.workload_spot_ec2_kubelet_extra_args
+      tags = local.workload_instance_tags
+    },
+    {
+      name                 = "spot-secondary"
+      subnets              = [local.secondary_subnet_id]
+      override_instance_types = local.spot_instance_types
+
+      spot_instance_pools = 0
+      spot_allocation_strategy = "capacity-optimized"
+
+      // Cost Savings
+      //      asg_desired_capacity = 0
+      //      asg_min_size = 0
+      //      asg_max_size = 0
+
+      asg_desired_capacity = 1
+      asg_min_size = 1
+      asg_max_size = 5
+
+      public_ip            = true
+      root_volume_type     = "gp2"
+
+      kubelet_extra_args = local.workload_spot_ec2_kubelet_extra_args
+      tags = local.workload_instance_tags
     }
   ]
+
+}
+
+resource "null_resource" "coredns_patch" {
+
+  provisioner "local-exec" {
+    command = "/course/kube/coredns-patch.sh"
+  }
+
+  depends_on = [module.kube]
 
 }
 

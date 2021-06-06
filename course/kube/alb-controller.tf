@@ -16,11 +16,12 @@ resource "helm_release" "aws_load_balancer_controller" {
     {
       cluster_name = local.cluster_name
       name_override = local.alb_controller_name
+      system_ec2_logical_role_name = local.system_ec2_logical_role_name
       alb_controller_role_arn = module.iam_assumable_aws_alb_controller_role.iam_role_arn
     }
   )]
 
-  depends_on = [module.kube]
+  depends_on = [module.kube, null_resource.coredns_patch]
 }
 
 module "iam_assumable_aws_alb_controller_role" {

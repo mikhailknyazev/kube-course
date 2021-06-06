@@ -1,5 +1,13 @@
 # values referenced from: https://artifacthub.io/packages/helm/metrics-server/metrics-server
 
+nodeSelector:
+  node.kubernetes.io/lifecycle: normal
+tolerations:
+  - key: ${system_ec2_logical_role_name}
+    operator: Equal
+    value: "true"
+    effect: NoExecute
+
 resources:
   requests:
     cpu: 200m

@@ -23,6 +23,7 @@ resource "helm_release" "cluster_autoscaler" {
       region                       = var.region
       cluster_name                 = local.cluster_name
       name_override                = local.cluster_autoscaler_name
+      system_ec2_logical_role_name = local.system_ec2_logical_role_name
       cluster_autoscaler_role_arn  = module.iam_assumable_cluster_autoscaler_role.iam_role_arn
     }
   )]

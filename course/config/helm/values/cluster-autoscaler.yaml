@@ -9,6 +9,14 @@ image:
   repository: us.gcr.io/k8s-artifacts-prod/autoscaling/cluster-autoscaler
   tag: v1.20.0
 
+nodeSelector:
+  node.kubernetes.io/lifecycle: normal
+tolerations:
+  - key: ${system_ec2_logical_role_name}
+    operator: Equal
+    value: "true"
+    effect: NoExecute
+
 rbac:
   create: true
   serviceAccount:

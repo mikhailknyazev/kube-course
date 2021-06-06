@@ -6,5 +6,10 @@ resource "helm_release" "metrics_server" {
   repository = "https://olemarkus.github.io/metrics-server"
   version    = "2.11.2"
   namespace  = "kube-system"
-  values     = [file("${path.module}/helm/values/metrics-server.yaml")]
+  values     = [templatefile(
+  "${path.module}/helm/values/metrics-server.yaml",
+  {
+    system_ec2_logical_role_name = local.system_ec2_logical_role_name
+  }
+  )]
 }

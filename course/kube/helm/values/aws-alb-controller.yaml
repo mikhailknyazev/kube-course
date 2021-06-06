@@ -16,6 +16,14 @@ resources:
     cpu: 150m
     memory: 150Mi
 
+nodeSelector:
+  node.kubernetes.io/lifecycle: normal
+tolerations:
+  - key: ${system_ec2_logical_role_name}
+    operator: Equal
+    value: "true"
+    effect: NoExecute
+
 # The ingress class this controller will satisfy. If not specified, controller will match all
 # ingresses without ingress class annotation and ingresses of type alb
 ingressClass: alb

@@ -49,13 +49,17 @@ containerHealthChecks:
     periodSeconds: 10
     timeoutSeconds: 5
 
+# Note: We deliberately give here a lot of CPU resources to simulate a situation,
+#       when more than one replica of the workload can NOT technically fit into one EC2 instance.
+#       In other words, two replicas CANNOT coexist on one medium EC2 instance because of this high CPU requirement here.
+#       The other replica must be placed onto a different EC2 instance because of its high CPU requirement.
 resources:
   requests:
-    memory: 256M
-    cpu: 550m
+    memory: 384M
+    cpu: 1000m
   limits:
-    memory: 256M
-    cpu: 600m
+    memory: 384M
+    cpu: 1000m
 
 horizontalPodAutoscaler:
   enabled: false
