@@ -49,3 +49,7 @@ output "cluster_oidc_issuer_url" {
 output "tools_logical_role_name" {
   value = local.tools_logical_role_name
 }
+
+output "workload_logical_role_name" {
+  value = local.workload_logical_role_name
+}

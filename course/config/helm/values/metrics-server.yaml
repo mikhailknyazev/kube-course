@@ -1,0 +1,6 @@
+# values referenced from: https://artifacthub.io/packages/helm/metrics-server/metrics-server
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi

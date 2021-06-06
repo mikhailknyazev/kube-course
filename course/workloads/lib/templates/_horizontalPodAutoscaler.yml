@@ -1,0 +1,45 @@
+{{- define "lib.horizontalPodAutoscaler" }}
+{{- if and .Values.horizontalPodAutoscaler .Values.horizontalPodAutoscaler.enabled }}
+
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{ .Values.appName }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "app.allLabels" . | nindent 4 }}
+spec:
+  maxReplicas: {{ .Values.horizontalPodAutoscaler.maxReplicas }}
+  minReplicas: {{ .Values.horizontalPodAutoscaler.minReplicas }}
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{ .Values.appName }}
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: AverageValue
+          averageUtilization: 15
+  # See: https://v1-20.docs.kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 60
+      policies:
+        - type: Percent
+          value: 50
+          periodSeconds: 10
+        - type: Pods
+          value: 1
+          periodSeconds: 10
+      selectPolicy: Max
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+        - type: Pods
+          value: 30
+          periodSeconds: 1
+      selectPolicy: Max
+{{- end }}
+{{- end }}

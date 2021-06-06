@@ -52,6 +52,11 @@ resources:
     memory: 256M
     cpu: 600m
 
+horizontalPodAutoscaler:
+  enabled: true
+  maxReplicas: 20
+  minReplicas: 2
+
 helmTest:
   enabled: true
   command: "curl -sS -X GET http://basic.apps.svc.cluster.local:8080/hello?myName=MichaelK"

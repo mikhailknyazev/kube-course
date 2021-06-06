@@ -1,0 +1,59 @@
+resources:
+  requests:
+    cpu: 250m
+    memory: 128Mi
+  limits:
+    cpu: 250m
+    memory: 128Mi
+
+schedule: "*/3 * * * *"
+
+# It should be like 2x greater than the period above
+# See: https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/
+startingDeadlineSeconds: 360
+
+cmdOptions:
+
+  # We want descheduling to run on all instances except "tools" ones
+  node-selector: "role=${workload_logical_role_name}"
+  evict-local-storage-pods:
+
+  # We are running Descheduler in "dry-run" mode for now.
+  dry-run:
+
+  logging-format: "text"
+  v: 1
+
+deschedulerPolicy:
+  strategies:
+    RemoveDuplicates:
+      enabled: true
+      params:
+        # Only pods under the threshold can be evicted
+        thresholdPriorityClassName: ${threshold_priority_class_name}
+        namespaces:
+          exclude:
+            - "kube-system"
+    RemovePodsViolatingTopologySpreadConstraint:
+      enabled: false
+    LowNodeUtilization:
+      enabled: false
+    RemovePodsViolatingInterPodAntiAffinity:
+      enabled: false
+    RemovePodsViolatingNodeAffinity:
+      enabled: false
+    RemovePodsViolatingNodeTaints:
+      enabled: false
+    RemovePodsHavingTooManyRestarts:
+      enabled: false
+    PodLifeTime:
+      enabled: false
+
+rbac:
+  create: true
+
+podSecurityPolicy:
+  create: false
+
+serviceAccount:
+  create: true
