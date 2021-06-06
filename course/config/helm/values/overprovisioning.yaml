@@ -1,0 +1,17 @@
+---
+
+# Note: we do not use double quotes here, we want a boolean here.
+enabled: ${overprovisioning_enabled}
+
+replicaCount: "${replicas}"
+
+primaryAz: "${primaryAz}"
+secondaryAz: "${secondaryAz}"
+
+resources:
+  limits:
+    cpu: "${cpu}"
+    memory: "${memory}"
+  requests:
+    cpu: "${cpu}"
+    memory: "${memory}"

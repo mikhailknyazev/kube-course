@@ -1,0 +1,13 @@
+enabled: false
+replicaCount: 1
+
+primaryAz: # ap-southeast-2a
+secondaryAz: # ap-southeast-2b
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 300M
+  requests:
+    cpu: 500m
+    memory: 300M

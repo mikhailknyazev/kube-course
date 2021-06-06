@@ -1,0 +1,42 @@
+{{- define "ballast.deployment" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ballast-{{.az}}
+  namespace: kube-system
+spec:
+  replicas: {{ .root.replicaCount }}
+  selector:
+    matchLabels:
+      app: ballast-{{.az}}
+  template:
+    metadata:
+      labels:
+        app: ballast-{{.az}}
+    spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node.kubernetes.io/lifecycle
+                    operator: In
+                    values:
+                      - spot
+                  - key: role
+                    operator: In
+                    values:
+                      - workload
+                  - key: topology.kubernetes.io/zone
+                    operator: In
+                    values:
+                      - {{.az}}
+      priorityClassName: overprovisioning
+      containers:
+        - name: reserve-resources
+          image: "k8s.gcr.io/pause:3.1"
+          imagePullPolicy: "IfNotPresent"
+          resources:
+            {{- toYaml .root.resources | nindent 12 }}
+{{- end }}

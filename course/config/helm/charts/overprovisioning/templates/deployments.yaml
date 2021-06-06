@@ -1,0 +1,4 @@
+{{- if .Values.enabled }}
+{{- template "ballast.deployment" (dict "root" .Values "az" .Values.primaryAz) }}
+{{- template "ballast.deployment" (dict "root" .Values "az" .Values.secondaryAz) }}
+{{- end }}
