@@ -30,9 +30,9 @@ module "kube" {
       subnets              = [local.primary_subnet_id, local.secondary_subnet_id]
       instance_type        = local.regular_instance_type
 
-      asg_desired_capacity = 1
-      asg_min_size = 1
-      asg_max_size = 1
+      asg_desired_capacity = 2
+      asg_min_size = 2
+      asg_max_size = 5
 
       // Cost Savings
 //      asg_desired_capacity = 0
