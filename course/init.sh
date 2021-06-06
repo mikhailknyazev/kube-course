@@ -18,9 +18,14 @@ export TF_VAR_node_termination_handler_webhook_url="${NODE_TERMINATION_HANDLER_W
 
 EOF
 
-if [ -f "/course/kube/config" ]
+if [ -f '/course/kube/config' ]
 then
   mkdir -p ~/.kube
   cp /course/kube/config ~/.kube/config
   chmod o-r,g-r ~/.kube/config
+fi
+
+if [ -f '/course/misc/functions.sh' ]
+then
+  cat '/course/misc/functions.sh' >> ~/.bashrc
 fi

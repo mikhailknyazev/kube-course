@@ -1,0 +1,15 @@
+apiVersion: v2
+description: Basic Microservice (Spring Boot)
+name: basic
+type: application
+
+# Effective Chart version (supposed to change whenever the templates/dependencies or the App version changes)
+version:
+
+# App version, now the docker image version: michaelkubecourse/basic-microservice:1.0.0
+appVersion:
+
+dependencies:
+  - name: lib
+    version: 1.0.0
+    repository: file://../lib

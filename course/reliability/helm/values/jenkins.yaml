@@ -1,0 +1,55 @@
+
+nameOverride: ${name_override}
+fullnameOverride: ${name_override}
+namespaceOverride: ${namespace_override}
+
+controller:
+
+  resources:
+    requests:
+      cpu: "50m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "1G"
+
+  jenkinsUriPrefix: "/jenkins"
+
+  additionalPlugins:
+    - workflow-multibranch:2.24
+
+  nodeSelector:
+    role: ${tools_logical_role_name}
+  tolerations:
+    - key: ${tools_logical_role_name}
+      operator: "Equal"
+      value: "true"
+      effect: NoSchedule
+
+  ingress:
+    enabled: true
+    apiVersion: "networking.k8s.io/v1"
+    labels:
+      ingress.class: alb
+    annotations:
+      kubernetes.io/ingress.class: alb
+      alb.ingress.kubernetes.io/target-type: ip
+      alb.ingress.kubernetes.io/scheme: internet-facing
+
+      # Note: we are using the "tools" ALB Group here, it is shared with Argo Server UI (all paths except "/jenkins/*")
+      #       Hence, the ALB instance is shared for all the "tools" (NOT apps/workloads).
+      # See also: https://kubernetes-sigs.github.io/aws-load-balancer-controller/guide/ingress/annotations/#group.order
+      alb.ingress.kubernetes.io/group.name: ${cluster_name}-tools-alb-group
+      alb.ingress.kubernetes.io/group.order: "10"
+
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+      alb.ingress.kubernetes.io/healthcheck-path: /jenkins/login
+      alb.ingress.kubernetes.io/healthcheck-interval-seconds: "30"
+      alb.ingress.kubernetes.io/healthcheck-timeout-seconds: "5"
+      alb.ingress.kubernetes.io/healthy-threshold-count: "2"
+      alb.ingress.kubernetes.io/unhealthy-threshold-count: "3"
+    path: "/jenkins/*"
+
+persistence:
+  enabled: false
+

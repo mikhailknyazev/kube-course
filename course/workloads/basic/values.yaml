@@ -1,0 +1,58 @@
+
+namespace: # defined by the deployment script
+clusterName: # defined by the deployment script
+awsAccount: # defined by the deployment script
+
+appName: basic
+
+replicaCount: 1
+
+serviceAccount:
+  name: basic-service-account
+
+priorityClass:
+  name: regular
+
+createDeployment: true
+
+containerPort: 8080
+
+image:
+  repository: michaelkubecourse/basic-microservice
+  pullPolicy: IfNotPresent
+
+ingress:
+  enabled: false
+
+containerHealthChecks:
+  readinessProbe:
+    failureThreshold: 1
+    successThreshold: 1
+    httpGet:
+      path: /hello
+      port: 8080
+    initialDelaySeconds: 35
+    periodSeconds: 10
+    timeoutSeconds: 5
+  livenessProbe:
+    failureThreshold: 1
+    successThreshold: 1
+    httpGet:
+      path: /hello
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+
+resources:
+  requests:
+    memory: 256M
+    cpu: 128m
+  limits:
+    memory: 256M
+    cpu: 600m
+
+helmTest:
+  enabled: true
+  command: "curl -sS -X GET http://basic.apps.svc.cluster.local:8080/hello?myName=MichaelK"
+  expectedCommandResult: "Hello MichaelK!"

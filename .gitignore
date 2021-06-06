@@ -32,6 +32,7 @@ override.tf.json
 /course/kube/config
 /course/workloads/basic/values.schema.json
 /course/workloads/basic/charts/
+/course/workloads/basic/Chart.yaml
 /course/config/.terraform.lock.hcl
 /course/kube/.terraform.lock.hcl
 /course/misc/initial_terraform_aws_test/.terraform.lock.hcl

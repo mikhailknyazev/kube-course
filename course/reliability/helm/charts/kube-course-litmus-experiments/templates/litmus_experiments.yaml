@@ -1,0 +1,3 @@
+{{ range $path, $_ :=  .Files.Glob  "experiments/**.yaml" }}
+{{ $.Files.Get $path }}
+{{ end }}

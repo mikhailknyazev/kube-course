@@ -1,0 +1,14 @@
+{{- define "lib.podDisruptionBudget" }}
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ .Values.appName }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "app.allLabels" . | nindent 4 }}
+spec:
+  minAvailable: 50%
+  selector:
+    matchLabels:
+      {{- include "app.selectorLabels" . | nindent 6 }}
+{{- end }}

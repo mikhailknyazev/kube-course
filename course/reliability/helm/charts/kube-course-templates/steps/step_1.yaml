@@ -1,0 +1,191 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: step1-templates
+  namespace: litmus
+spec:
+  templates:
+
+    - name: litmus-pod-delete
+      inputs:
+        parameters:
+          - name: chaos-duration
+          - name: chaos-interval
+          - name: pods-affected-perc
+          - name: probe-mode
+          - name: experiment-id
+          - name: http-probe-url
+      resource:
+        action: apply
+        manifest: |
+          apiVersion: litmuschaos.io/v1alpha1
+          kind: ChaosEngine
+          metadata:
+            name: engine-{{inputs.parameters.experiment-id}}
+            namespace: {{workflow.parameters.adminModeNamespace}}
+          spec:
+            appinfo:
+              appns: {{workflow.parameters.appNamespace}}
+              applabel: "app.kubernetes.io/name={{workflow.parameters.appLabel}}"
+              appkind: deployment
+            jobCleanUpPolicy: retain
+            monitoring: false
+            annotationCheck: 'false'
+            engineState: 'active'
+            chaosServiceAccount: litmus-admin
+            components:
+              runner:
+                nodeSelector:
+                  kubernetes.io/os: linux
+                  role: "tools"
+                tolerations:
+                  - key: tools
+                    operator: "Equal"
+                    value: "true"
+                    effect: NoSchedule
+            experiments:
+              - name: pod-delete
+                spec:
+                  probe:
+                    - name: "check-hello-works"
+                      type: "httpProbe"
+                      httpProbe/inputs:
+                        url: "{{inputs.parameters.http-probe-url}}"
+                        insecureSkipVerify: false
+                        method:
+                          get:
+                            criteria: == # supports == & != and oneof operations
+                            responseCode: "200"
+                      mode: {{inputs.parameters.probe-mode}} # EOT, Continuous
+                      runProperties:
+                        probeTimeout: 5
+                        interval: 5
+                        retry: 1
+                        probePollingInterval: 2
+                  components:
+                    nodeSelector:
+                      kubernetes.io/os: linux
+                      role: "tools"
+                    tolerations:
+                      - key: tools
+                        operator: "Equal"
+                        value: "true"
+                        effect: NoSchedule
+                    statusCheckTimeouts:
+                      delay: 15
+                      timeout: 30
+                    env:
+                      - name: TOTAL_CHAOS_DURATION
+                        value: "{{inputs.parameters.chaos-duration}}"
+                      - name: CHAOS_INTERVAL
+                        value: "{{inputs.parameters.chaos-interval}}"
+                      - name: PODS_AFFECTED_PERC
+                        value: "{{inputs.parameters.pods-affected-perc}}"
+                      - name: INSTANCE_ID
+                        value: "{{inputs.parameters.experiment-id}}"
+                      - name: FORCE
+                        value: "false"
+
+    - name: await-litmus-result
+      inputs:
+        parameters:
+          - name: experiment-id
+      script:
+        command: [ /bin/sh ]
+        source: |
+          #!/bin/sh
+          set -e
+
+          echo "Searching for logs of experiment {{inputs.parameters.experiment-id}}..."
+
+          experiment_pod_name=""
+
+          #// TODO minor MKN: impl timeout here
+          while true
+          do
+            experiment_pod_name=$( \
+              kubectl get pod -n litmus -l app.kubernetes.io/component=experiment-job -o json | \
+              jq -r '.items[] | select(  .status.phase == ("Running", "Succeeded", "Failed") and any(  .spec.containers[]; any(.env[]; .name == "INSTANCE_ID" and .value == "{{inputs.parameters.experiment-id}}")  )  ) | .metadata.name' \
+            )
+            if [ -n "${experiment_pod_name}" ]; then break; fi
+            sleep 5
+          done
+
+          echo "Logs of ${experiment_pod_name}:"
+          kubectl logs -n litmus ${experiment_pod_name} -f
+
+          echo "Waiting for final status of experiment {{inputs.parameters.experiment-id}}..."
+
+          chaos_result_status=""
+
+          #// TODO minor MKN: impl timeout here
+          while true
+          do
+            chaos_result_status=$( \
+              kubectl get chaosresult -n litmus -o json | \
+              jq -r -M '.items[] | select( (.spec.instance == "{{inputs.parameters.experiment-id}}") and .status.experimentStatus.phase == ("Completed", "Aborted") ) | { status }' \
+            )
+            if [ -n "${chaos_result_status}" ]; then break; fi
+            echo "Pause for 5 seconds..."
+            sleep 5
+          done
+
+          echo "${chaos_result_status}"
+
+          exit 0
+        image: michaelkubecourse/tools
+        imagePullPolicy: IfNotPresent
+
+    - name: reliability-verdict
+      inputs:
+        parameters:
+          - name: script
+      metadata:
+        labels:
+          role: "reliability-verdict"
+      script:
+        command: [ /bin/sh ]
+        source: "{{inputs.parameters.script}}"
+        image: michaelkubecourse/tools
+        imagePullPolicy: IfNotPresent
+
+    - name: litmus-reliability-verdict
+      inputs:
+        parameters:
+          - name: experiment-id
+      outputs:
+        parameters:
+          - name: verdict
+            valueFrom:
+              path: /tmp/verdict.txt
+      metadata:
+        labels:
+          role: "reliability-verdict"
+      script:
+        command: [ /bin/sh ]
+        source: |
+          #!/bin/sh
+          set -e
+
+          chaos_result_verdict=$( \
+            kubectl get chaosresult -n litmus -o json | \
+            jq -r -M '.items[] | select( (.spec.instance == "{{inputs.parameters.experiment-id}}") and .status.experimentStatus.phase == ("Completed", "Aborted") ) | .status.experimentStatus.verdict ' \
+          )
+
+          echo "chaos_result_verdict: ${chaos_result_verdict}"
+
+          verdict=''
+          if [ "${chaos_result_verdict}" = "Pass" ]
+          then
+            verdict='RELIABILITY_OK'
+          else
+            verdict='Reliability is not good enough'
+          fi
+
+          echo $verdict > /tmp/verdict.txt
+          echo $verdict
+
+          exit 0
+        image: michaelkubecourse/tools
+        imagePullPolicy: IfNotPresent

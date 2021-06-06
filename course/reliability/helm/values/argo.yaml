@@ -1,0 +1,52 @@
+
+images:
+  pullPolicy: IfNotPresent
+
+workflow:
+  namespace: ""  # Specify namespace if workflows run in another namespace than argo. This controls where the service account and RBAC resources will be created.
+
+controller:
+  serviceAccount: argo
+  name: workflow-controller
+  logging:
+    level: info
+    globallevel: "0"
+
+  nodeSelector:
+    role: ${tools_logical_role_name}
+  tolerations:
+    - key: ${tools_logical_role_name}
+      operator: "Equal"
+      value: "true"
+      effect: NoSchedule
+
+server:
+  enabled: true
+  name: server
+  serviceType: ClusterIP
+  servicePort: 2746
+  # servicePortName: http
+  serviceAccount: argo-server
+  # Whether to create the service account with the name specified in
+  # server.serviceAccount and bind it to the server role.
+  createServiceAccount: true
+  replicas: 1
+
+  nodeSelector:
+    role: ${tools_logical_role_name}
+  tolerations:
+    - key: ${tools_logical_role_name}
+      operator: "Equal"
+      value: "true"
+      effect: NoSchedule
+
+  ## Ingress configuration.
+  ## ref: https://kubernetes.io/docs/user-guide/ingress/
+  ##
+  ingress:
+    # Note: We are creating the Ingress in Terraform rather than here.
+    enabled: false
+
+
+
+

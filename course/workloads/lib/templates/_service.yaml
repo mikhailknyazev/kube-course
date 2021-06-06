@@ -1,0 +1,17 @@
+{{- define "lib.service" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.appName }}
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "app.allLabels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "app.selectorLabels" . | nindent 4 }}
+  ports:
+    - port: {{ .Values.containerPort }}
+      targetPort: {{ .Values.containerPort }}
+      protocol: TCP
+{{- end }}

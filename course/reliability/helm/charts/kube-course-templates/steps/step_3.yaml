@@ -1,0 +1,86 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: step3-templates
+  namespace: litmus
+spec:
+  templates:
+
+    - name: run-benchmark
+      inputs:
+        parameters:
+          - name: target-url
+          - name: bench-duration
+          - name: bench-rate
+      script:
+        command: [ /bin/sh, -x ]
+        source: |
+          #!/bin/sh
+          set -e
+          echo "GET ${TARGET_URL}" | vegeta attack -duration=${BENCHMARK_DURATION} -rate=${BENCHMARK_RATE} | vegeta report -type=json
+          exit 0
+        env:
+          - name: TARGET_URL
+            value: "{{inputs.parameters.target-url}}"
+          - name: BENCHMARK_DURATION
+            value: "{{inputs.parameters.bench-duration}}"
+          - name: BENCHMARK_RATE
+            value: "{{inputs.parameters.bench-rate}}"
+        image: michaelkubecourse/tools
+        imagePullPolicy: IfNotPresent
+
+    - name: benchmark-reliability-verdict
+      inputs:
+        parameters:
+          - name: benchmark-result
+      outputs:
+        parameters:
+          - name: verdict
+            valueFrom:
+              path: /tmp/verdict.txt
+      metadata:
+        labels:
+          role: "reliability-verdict"
+      script:
+        command: [ /bin/sh ]
+        source: |
+          #!/bin/sh
+          set -e
+
+          echo 'FULL BENCHMARK RESULTS:'
+          echo '*******************************************************************************************************************************************'
+          echo '{{inputs.parameters.benchmark-result}}'
+          echo '*******************************************************************************************************************************************'
+
+          errors_types=$(echo '{{inputs.parameters.benchmark-result}}' | jq '.errors')
+          errors_types_count=$(echo $errors_types | jq 'length')
+          max_latency_ns=$(echo '{{inputs.parameters.benchmark-result}}' | jq -r '.latencies.max')
+          success_factor=$(echo '{{inputs.parameters.benchmark-result}}' | jq -r '.success')
+          non_200_statuses_types=$(echo '{{inputs.parameters.benchmark-result}}' | jq -r '.status_codes | with_entries(select( .key != "200" ))')
+          non_200_statuses_types_count=$(echo $non_200_statuses_types | jq 'length')
+
+          echo 'BENCHMARK SUMMARY AND RELIABILITY EVALUATION:'
+          echo '*******************************************************************************************************************************************'
+          echo -n "success_factor: ${success_factor}, \nerrors_types: ${errors_types}, \nerrors_types_count: ${errors_types_count}, \nmax_latency_ns: ${max_latency_ns} nanoseconds, \nnon_200_statuses_types: ${non_200_statuses_types}, \nnon_200_statuses_types_count: ${non_200_statuses_types_count}\n"
+          echo
+          echo "EVAULATING... Fails if either of the following holds true: (success_factor != 1) OR (errors_types_count != 0) OR (non_200_statuses_types_count != 0) OR (max_latency_ns > 1 000 000 000 (1 second))"
+          echo '*******************************************************************************************************************************************'
+
+          verdict=''
+          if [ "${success_factor}" != "1" ] || \
+             [ "${errors_types_count}" != "0" ] || \
+             [ "${non_200_statuses_types_count}" != "0" ] || \
+             [ "${max_latency_ns}" -gt 1000000000 ]
+          then
+            verdict='Reliability is not good enough'
+          else
+            verdict='RELIABILITY_OK'
+          fi
+
+          echo $verdict > /tmp/verdict.txt
+          echo $verdict
+
+          exit 0
+        image: michaelkubecourse/tools
+        imagePullPolicy: IfNotPresent

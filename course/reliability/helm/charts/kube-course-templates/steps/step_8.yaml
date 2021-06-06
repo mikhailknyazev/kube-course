@@ -1,0 +1,177 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: step8-templates
+  namespace: litmus
+spec:
+  templates:
+
+    - name: ec2-spot-interruption-experiment
+      inputs:
+        parameters:
+          - name: spot-node-unavailable-after-interruption-duration-sec
+      script:
+        command: [ /bin/sh ]
+        source: |
+          #!/bin/sh
+          set -e
+
+          # Note: we are choosing a Spot Instance marked for handling Spot Termination in general.
+          hostname=$(kubectl get node -l spot-node-termination=regular -o json | jq -r '.items[0] | .metadata.labels["kubernetes.io/hostname"]')
+          echo "We are simulating Spot Interruption for ${hostname}..."
+
+          # // TODO minor MKN: we ideally want to just kill the Spot Instance after the standard AWS notice of 2 minutes.
+          #                    For now, we only make the Spot Instance unavailable for the EKS Cluster for the specified duration.
+          SPOT_NODE_UNAVAILABLE_DURATION_SEC={{inputs.parameters.spot-node-unavailable-after-interruption-duration-sec}}
+
+          # This will immediately start terminating the existing Node Termination Handler pod on the target EC2 Spot Instance.
+          # We will replace the Pod with a reconfigured one (for the tests purposes) shortly.
+          kubectl label node -l kubernetes\.io/hostname=${hostname} spot-node-termination=exclusive --overwrite=true
+
+          # Here, 3 minutes = 1 minute preparation + 2 minutes Standard Spot ITN Notice
+          echo "Current UTC time: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+          three_minutes_after_now=$(date --date="3 minutes" -u +"%Y-%m-%dT%H:%M:%SZ")
+          echo "Updating the ec2-metadata-mock helm chart to return the mock Spot Interruption Notice after 60 seconds to happen at ${three_minutes_after_now}..."
+          echo '****************************************'
+          helm upgrade -n kube-system ec2-metadata-mock https://github.com/aws/amazon-ec2-metadata-mock/releases/download/v1.9.0/amazon-ec2-metadata-mock-1.9.0.tgz --reuse-values \
+            --wait --set "aemm.spot.time=${three_minutes_after_now}" --set "aemm.mockDelaySec=60"
+          echo '****************************************'
+          echo
+          echo "The ec2-metadata-mock has been updated."
+
+          echo "Updating the node-termination-handler helm chart to target 'spot-node-termination=exclusive' Nodes..."
+          echo '****************************************'
+          helm upgrade -n kube-system aws-node-termination-handler https://aws.github.io/eks-charts/aws-node-termination-handler-0.15.0.tgz --reuse-values \
+            --wait --set "nodeSelector.spot-node-termination=exclusive" --set "instanceMetadataURL=http://ec2-metadata-mock.kube-system.svc.cluster.local:1338"
+          echo '****************************************'
+          echo
+          echo "The node-termination-handler has been temporarily updated to target 'spot-node-termination=exclusive' Nodes."
+          echo "Most importantly, the printed below its parameters should have 'spot-node-termination: exclusive' and 'instanceMetadataURL: http://ec2-metadata-mock.kube-system.svc.cluster.local:1338'"
+          echo '****************************************'
+          helm get values -n kube-system aws-node-termination-handler
+          echo '****************************************'
+
+          # EXPERIMENT HERE WITH THE MOCK METADATA (the "instanceMetadataURL" should have been updated along with the setting  "nodeSelector.spot-node-termination=exclusive" above)
+
+          echo "Waiting 2 minutes to simulate the actual interruption of the EC2 instance "${hostname}". The node will be tainted with 'simulated-termination:NoExecute' ..."
+          sleep 120
+
+          echo "WAITING DONE. Applying the taint..."
+          kubectl taint node "${hostname}" simulated-termination:NoExecute
+          echo "The node "${hostname}" has been tainted with 'simulated-termination:NoExecute'"
+
+          echo "Waiting for ${SPOT_NODE_UNAVAILABLE_DURATION_SEC} seconds before 'returning' the Spot Instance to the EKS cluster and restoring the 'node-termination-handler' helm chart..."
+          echo '************** Waiting *****************'
+
+          sleep "${SPOT_NODE_UNAVAILABLE_DURATION_SEC}"
+
+          echo
+          echo '****************************************'
+          echo "WAITING DONE. 'Returning' the Spot Instance ${hostname} to the EKS cluster and restoring the 'node-termination-handler' helm chart..."
+
+          if kubectl get node ${hostname}
+          then
+            if kubectl label node -l kubernetes\.io/hostname=${hostname} spot-node-termination=regular --overwrite=true
+            then
+              echo "Labeled ${hostname} with 'spot-node-termination=regular'"
+            fi
+
+            if kubectl taint node "${hostname}" simulated-termination:NoExecute-
+            then
+              echo "Removed taint 'simulated-termination:NoExecute' from ${hostname}"
+            fi
+
+            if kubectl uncordon ${hostname}
+            then
+              echo "Uncordoned ${hostname}"
+            fi
+          else
+            echo "The the Spot Instance ${hostname} NOT FOUND. It has been likely terminated by the Cluster Autoscaler already (unneeded / underutilized)..."
+          fi
+
+          echo
+          echo "Restoring the node-termination-handler helm chart to target 'spot-node-termination=regular' Nodes..."
+          echo '****************************************'
+          helm upgrade -n kube-system aws-node-termination-handler https://aws.github.io/eks-charts/aws-node-termination-handler-0.15.0.tgz --reuse-values \
+            --wait --set "nodeSelector.spot-node-termination=regular" --set "instanceMetadataURL=http://169.254.169.254:80"
+          echo '****************************************'
+          echo
+          echo "Most importantly, the printed below its parameters should have 'spot-node-termination: regular' and 'instanceMetadataURL: http://169.254.169.254:80'"
+          echo '****************************************'
+          helm get values -n kube-system aws-node-termination-handler
+          echo '****************************************'
+
+          echo "ALL DONE. This process existing..."
+
+          exit 0
+        image: michaelkubecourse/tools
+        imagePullPolicy: IfNotPresent
+
+
+    - name: await-simulated-spot-interruption
+      script:
+        command: [ /bin/sh ]
+        source: |
+          #!/bin/sh
+          set -e
+
+          echo "Waiting for an EKS node prepared for Spot Interruption simulation..."
+
+          termination_hostname='null'
+
+          #// TODO minor MKN: impl timeout here
+          while true
+          do
+
+              # DEV testing time:
+              #termination_hostname=$(kubectl get node -l spot-node-termination=regular -o json | jq -r '.items[0] | .metadata.labels["kubernetes.io/hostname"]')
+
+              # PROD time:
+              termination_hostname=$(kubectl get node -l spot-node-termination=exclusive -o json | jq -r '.items[0] | .metadata.labels["kubernetes.io/hostname"]')
+
+              if [ "${termination_hostname}" != 'null' ]; then break; fi
+              sleep 5
+          done
+
+          echo "Spot Interruption is being simulated for ${termination_hostname}."
+
+          echo "Waiting for the configured node-termination-handler Pod on ${termination_hostname}..."
+
+          pod_to_handle_interruption=''
+
+          #// TODO minor MKN: impl timeout here
+          while true
+          do
+
+            # DEV testing time:
+            #pod_to_handle_interruption=$( \
+            #  kubectl get pod -n kube-system -l app.kubernetes.io/name=node-termination-handler -o json | \
+            #  jq -r ".items[] | select( .spec.nodeName == \"${termination_hostname}\" and .status.phase == (\"Running\") and any(  .spec.containers[]; any(.env[]; .name == \"INSTANCE_METADATA_URL\" and .value == \"http://169.254.169.254:80\")  ) ) | .metadata.name" \
+            #)
+
+            # PROD time:
+            pod_to_handle_interruption=$( \
+                kubectl get pod -n kube-system -l app.kubernetes.io/name=node-termination-handler -o json | \
+                jq -r ".items[] | select( .spec.nodeName == \"${termination_hostname}\" and .status.phase == (\"Running\") and any(  .spec.containers[]; any(.env[]; .name == \"INSTANCE_METADATA_URL\" and .value == \"http://ec2-metadata-mock.kube-system.svc.cluster.local:1338\")  ) ) | .metadata.name" \
+              )
+
+            if [ -n "${pod_to_handle_interruption}" ]; then break; fi
+            sleep 5
+          done
+
+          echo
+          echo '****************************************'
+          echo "WAITING DONE. Logs of ${pod_to_handle_interruption}: following the log from the most recent 10 lines..."
+          echo
+          kubectl logs -n kube-system ${pod_to_handle_interruption} --tail=10 -f
+          echo '****************************************'
+          echo
+          echo "ALL DONE."
+          echo "The configured for testing purposes pod '${pod_to_handle_interruption}' completed on ${termination_hostname}."
+          echo "The node-termination-handler helm chart will soon be reconfigured back to regular parameters by ec2-spot-interruption-experiment..."
+          echo "This process existing..."
+
+          exit 0
+        image: michaelkubecourse/tools
+        imagePullPolicy: IfNotPresent

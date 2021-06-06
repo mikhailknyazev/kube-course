@@ -1,0 +1,50 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: step6-templates
+  namespace: litmus
+spec:
+  templates:
+
+    - name: deploy-previous-chart-version
+      inputs:
+        parameters:
+          - name: timeout
+      script:
+        command: [ /bin/sh ]
+        source: |
+          #!/bin/sh
+          set -e
+
+          revisions=$(helm history -n {{workflow.parameters.appNamespace}} {{workflow.parameters.appLabel}} -o json)
+          count=$(echo "${revisions}" | jq length)
+          prev_revision=''
+
+          if [ "$count" -ge "3" ]
+          then
+            echo "Number of revisions is greater than or equal 3, next step..."
+            prev_revision=$(echo "${revisions}" | jq -r '.[-2] | .revision')
+            echo "Deploying the previous non-initial revision ${prev_revision}..."
+          else
+            echo "Number of revisions should be greater than or equal 3, while it is ${count}. Exiting..."
+            exit 2
+          fi
+
+          set -x
+          helm rollback -n {{workflow.parameters.appNamespace}} {{workflow.parameters.appLabel}} "${prev_revision}" --wait --timeout {{inputs.parameters.timeout}}
+          exit 0
+        image: michaelkubecourse/tools
+        imagePullPolicy: IfNotPresent
+
+    - name: get-ingress-alb-workload-url
+      script:
+        command: [ /bin/sh ]
+        source: |
+          #!/bin/sh
+          set -e
+          alb_dns_name=$(kubectl get ingress -n {{workflow.parameters.appNamespace}} {{workflow.parameters.appLabel}} -o json | jq -r '.status.loadBalancer.ingress[0].hostname')
+          echo "http://${alb_dns_name}"
+          exit 0
+        image: michaelkubecourse/tools
+        imagePullPolicy: IfNotPresent

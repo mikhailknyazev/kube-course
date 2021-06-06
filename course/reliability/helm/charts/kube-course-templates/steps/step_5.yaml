@@ -1,0 +1,222 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: step5-templates
+  namespace: litmus
+spec:
+  templates:
+
+    - name: pause
+      inputs:
+        parameters:
+          - name: duration
+      suspend:
+        duration: "{{inputs.parameters.duration}}"
+
+    - name: cluster-autoscaler-log-daemon
+      # Note: the following setting makes the Workflow not wait for this component exiting.
+      daemon: true
+      script:
+        command: [ /bin/sh ]
+        source: |
+          #!/bin/sh
+          set -e
+          ca_po_name=$(kubectl get po -n kube-system --no-headers -l app.kubernetes.io/name=cluster-autoscaler -o custom-columns=NAME:.metadata.name)
+          if [ -z "${ca_po_name}" ]
+          then
+            echo "CLUSTER AUTOSCALER NOT FOUND."
+          else
+            echo "CLUSTER AUTOSCALER (${ca_po_name} in kube-system): following the log from the most recent five lines..."
+            kubectl logs $ca_po_name -n kube-system --tail=5 -f
+          fi
+
+          exit 0
+        image: michaelkubecourse/tools
+        imagePullPolicy: IfNotPresent
+
+    - name: litmus-pod-autoscaler
+      inputs:
+        parameters:
+          - name: chaos-duration
+          - name: replica-count
+          - name: http-probe-mode
+          - name: http-probe-url
+          - name: check-all-running-after-sec-of-chaos
+          - name: experiment-id
+      resource:
+        action: apply
+        manifest: |
+          apiVersion: litmuschaos.io/v1alpha1
+          kind: ChaosEngine
+          metadata:
+            name: engine-{{inputs.parameters.experiment-id}}
+            namespace: {{workflow.parameters.adminModeNamespace}}
+          spec:
+            appinfo:
+              appns: {{workflow.parameters.appNamespace}}
+              applabel: "app.kubernetes.io/name={{workflow.parameters.appLabel}}"
+              appkind: deployment
+            jobCleanUpPolicy: retain
+            monitoring: false
+            annotationCheck: 'false'
+            engineState: 'active'
+            chaosServiceAccount: litmus-admin
+            components:
+              runner:
+                nodeSelector:
+                  kubernetes.io/os: linux
+                  role: "tools"
+                tolerations:
+                  - key: tools
+                    operator: "Equal"
+                    value: "true"
+                    effect: NoSchedule
+            experiments:
+              - name: pod-autoscaler
+                spec:
+                  probe:
+                    - name: "check-hello-works"
+                      type: "httpProbe"
+                      httpProbe/inputs:
+                        url: "{{inputs.parameters.http-probe-url}}"
+                        insecureSkipVerify: false
+                        method:
+                          get:
+                            criteria: ==
+                            responseCode: "200"
+                      mode: {{inputs.parameters.http-probe-mode}} # EOT, Continuous
+                      runProperties:
+                        probeTimeout: 5
+                        interval: 5
+                        retry: 1
+                        probePollingInterval: 8
+                    - name: "check-all-running"
+                      type: "k8sProbe"
+                      k8sProbe/inputs:
+                        group: ""
+                        version: "v1"
+                        resource: "pods"
+                        namespace: "{{workflow.parameters.appNamespace}}"
+                        fieldSelector: "status.phase!=Running"
+                        labelSelector: "app.kubernetes.io/name={{workflow.parameters.appLabel}}"
+                        operation: "absent"
+                      mode: "OnChaos"
+                      runProperties:
+                        probeTimeout: 10
+                        interval: 5
+                        retry: 1
+                        probePollingInterval: 10
+                        initialDelaySeconds: {{inputs.parameters.check-all-running-after-sec-of-chaos}}
+                  components:
+                    nodeSelector:
+                      kubernetes.io/os: linux
+                      role: "tools"
+                    tolerations:
+                      - key: tools
+                        operator: "Equal"
+                        value: "true"
+                        effect: NoSchedule
+                    statusCheckTimeouts:
+                      delay: 15
+                      timeout: 30
+                    env:
+                      - name: TOTAL_CHAOS_DURATION
+                        value: '{{inputs.parameters.chaos-duration}}'
+                      # number of replicas to scale out to
+                      - name: REPLICA_COUNT
+                        value: '{{inputs.parameters.replica-count}}'
+                      - name: INSTANCE_ID
+                        value: "{{inputs.parameters.experiment-id}}"
+
+    - name: nodes-scaling-reliability-verdict
+      inputs:
+        parameters:
+          - name: nodes-count-before-scale-out
+          - name: nodes-count-after-scale-out
+          - name: nodes-count-after-scale-in
+      outputs:
+        parameters:
+          - name: verdict
+            valueFrom:
+              path: /tmp/verdict.txt
+      metadata:
+        labels:
+          role: "reliability-verdict"
+      script:
+        command: [ /bin/sh ]
+        source: |
+          #!/bin/sh
+          set -e
+
+          echo 'NODES STATS SUMMARY AND RELIABILITY EVALUATION:'
+          echo '*******************************************************************************************************************************************'
+
+          nodes_count_before_scale_out='{{inputs.parameters.nodes-count-before-scale-out}}'
+          nodes_count_after_scale_out='{{inputs.parameters.nodes-count-after-scale-out}}'
+          nodes_count_after_scale_in='{{inputs.parameters.nodes-count-after-scale-in}}'
+
+          echo -n "Nodes Count Results:\n  nodes_count_before_scale_out: ${nodes_count_before_scale_out}, \n  nodes_count_after_scale_out: ${nodes_count_after_scale_out}, \n  nodes_count_after_scale_in: ${nodes_count_after_scale_in}\n"
+          echo "EVAULATING... Fails if either of the following holds true: (nodes_count_before_scale_out != nodes_count_after_scale_in) OR (nodes_count_after_scale_out <= nodes_count_before_scale_out)"
+
+          verdict=''
+          if [ "${nodes_count_before_scale_out}" -ne "${nodes_count_after_scale_in}" ] || \
+             [ "${nodes_count_after_scale_out}" -le "${nodes_count_before_scale_out}" ]
+          then
+            verdict='Reliability is not good enough'
+          else
+            verdict='RELIABILITY_OK'
+          fi
+
+          echo $verdict > /tmp/verdict.txt
+          echo $verdict
+
+          exit 0
+        image: michaelkubecourse/tools
+        imagePullPolicy: IfNotPresent
+
+    - name: composite-reliability-verdict
+      inputs:
+        parameters:
+          - name: upstream-verdicts
+      outputs:
+        parameters:
+          - name: verdict
+            valueFrom:
+              path: /tmp/verdict.txt
+      metadata:
+        labels:
+          role: "reliability-verdict"
+      script:
+        command: [ /bin/bash ]
+        source: |
+          #!/bin/bash
+          set -e
+
+          echo 'EVAULATING OVERALL RESULTS... Successful if upstream_verdicts has ony RELIABILITY_OK entries.'
+          echo '*******************************************************************************************************************************************'
+
+          upstream_verdicts='{{inputs.parameters.upstream-verdicts}}'
+          echo "upstream_verdicts: ${upstream_verdicts}"
+
+          verdict=''
+          # Note: we are first checking if upstream_verdicts has at least one RELIABILITY_OK entry.
+          if [[ "${upstream_verdicts}" = *RELIABILITY_OK* ]]
+          then
+            not_ok=$(echo $upstream_verdicts | sed 's/RELIABILITY_OK//g;s/,//g;s/[[:space:]]//g')
+            if [ -n "${not_ok}" ]
+            then
+              verdict='Reliability is not good enough'
+            else
+              verdict='RELIABILITY_OK'
+            fi
+          else
+            verdict='Reliability is not good enough'
+          fi
+
+          echo $verdict > /tmp/verdict.txt
+          echo $verdict
+
+          exit 0
+        image: michaelkubecourse/tools
+        imagePullPolicy: IfNotPresent

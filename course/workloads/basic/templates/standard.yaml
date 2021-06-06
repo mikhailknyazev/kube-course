@@ -1,0 +1,11 @@
+---
+{{- template "lib.deployment" . }}
+---
+{{- template "lib.serviceAccount" . }}
+---
+{{- template "lib.podDisruptionBudget" . }}
+---
+{{- template "lib.service" . }}
+---
+{{- template "lib.helmTest" . }}
+

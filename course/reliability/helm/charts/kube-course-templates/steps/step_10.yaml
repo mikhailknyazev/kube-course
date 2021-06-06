@@ -1,0 +1,45 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: step10-templates
+  namespace: litmus
+spec:
+  templates:
+
+    - name: eks-rolling-update-experiment
+      script:
+        command: [ /bin/sh ]
+        source: |
+          #!/bin/sh
+          set -e
+
+          # Note: this Argo script is using the OIDC-injected AWS permissions to manage corresponding cluster.
+
+          # **********************************************
+          # Scale up and cordon/taint the outdated Launch Configuration nodes of each ASG one-by-one, just before we drain them.
+          #export RUN_MODE=1
+
+          # Roll EKS nodes based on age instead of launch config (works with MAX_ALLOWABLE_NODE_AGE with default 6 days value).
+          export RUN_MODE=4
+          # We are forcing the rolling update of the nodes for testing purposes
+          export MAX_ALLOWABLE_NODE_AGE=0
+          # **********************************************
+
+          export K8S_AUTOSCALER_ENABLED=1
+          export K8S_AUTOSCALER_NAMESPACE="kube-system"
+          export K8S_AUTOSCALER_DEPLOYMENT="cluster-autoscaler"
+          export K8S_AUTOSCALER_REPLICAS=1
+
+          asgs_json=$(aws autoscaling describe-auto-scaling-groups \
+            --query "AutoScalingGroups[? Tags[? (Key=='k8s.io/cluster-autoscaler/kube') && Value=='owned']]".AutoScalingGroupName)
+          export ASG_NAMES="$(echo "$asgs_json" | jq -r 'join(" ")')"
+
+          # eks_rolling_update.py --cluster_name kube --plan
+          eks_rolling_update.py --cluster_name kube
+
+          echo "ALL DONE. This process existing..."
+
+          exit 0
+        image: michaelkubecourse/tools
+        imagePullPolicy: IfNotPresent

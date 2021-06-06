@@ -1,0 +1,33 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "argoAll",
+      "Effect": "Allow",
+      "Action": [
+        "autoscaling:DescribeAutoScalingGroups",
+        "ec2:DescribeLaunchTemplates",
+        "ec2:DescribeInstances"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "argoOwn",
+      "Effect": "Allow",
+      "Action": [
+        "autoscaling:UpdateAutoScalingGroup",
+        "autoscaling:TerminateInstanceInAutoScalingGroup",
+        "autoscaling:SuspendProcesses",
+        "autoscaling:ResumeProcesses",
+        "autoscaling:CreateOrUpdateTags",
+        "autoscaling:DeleteTags"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "autoscaling:ResourceTag/kubernetes.io/cluster/${cluster_name}": "owned"
+        }
+      }
+    }
+  ]
+}

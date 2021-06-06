@@ -1,0 +1,134 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: step4-templates
+  namespace: litmus
+spec:
+  templates:
+
+    - name: litmus-cpu-hog
+      inputs:
+        parameters:
+          - name: chaos-duration
+          - name: pods-affected-perc
+          - name: http-probe-mode
+          - name: http-probe-url
+          - name: check-all-running-after-sec-of-chaos
+          - name: experiment-id
+      resource:
+        action: apply
+        manifest: |
+          apiVersion: litmuschaos.io/v1alpha1
+          kind: ChaosEngine
+          metadata:
+            name: engine-{{inputs.parameters.experiment-id}}
+            namespace: {{workflow.parameters.adminModeNamespace}}
+          spec:
+            appinfo:
+              appns: {{workflow.parameters.appNamespace}}
+              applabel: "app.kubernetes.io/name={{workflow.parameters.appLabel}}"
+              appkind: deployment
+            jobCleanUpPolicy: retain
+            monitoring: false
+            annotationCheck: 'false'
+            engineState: 'active'
+            chaosServiceAccount: litmus-admin
+            components:
+              runner:
+                nodeSelector:
+                  kubernetes.io/os: linux
+                  role: "tools"
+                tolerations:
+                  - key: tools
+                    operator: "Equal"
+                    value: "true"
+                    effect: NoSchedule
+            experiments:
+              - name: pod-cpu-hog
+                spec:
+                  probe:
+                    - name: "check-hello-works"
+                      type: "httpProbe"
+                      httpProbe/inputs:
+                        url: "{{inputs.parameters.http-probe-url}}"
+                        insecureSkipVerify: false
+                        method:
+                          get:
+                            criteria: ==
+                            responseCode: "200"
+                      mode: {{inputs.parameters.http-probe-mode}} # EOT, Continuous
+                      runProperties:
+                        probeTimeout: 5
+                        interval: 5
+                        retry: 1
+                        probePollingInterval: 2
+                    - name: "check-no-restarts"
+                      type: "cmdProbe"
+                      cmdProbe/inputs:
+                        command: |-
+                          kubectl get pods -l app.kubernetes.io\/name={{workflow.parameters.appLabel}} --sort-by=.status.containerStatuses[0].restartCount -n {{workflow.parameters.appNamespace}} -o json | jq -r -M 'last(.items[]) | .status.containerStatuses[0].restartCount'
+                        comparator:
+                          type: "string"
+                          criteria: "equal"
+                          value: "0"
+                        source: "michaelkubecourse/tools"
+                      mode: "Edge"
+                      runProperties:
+                        probeTimeout: 10
+                        interval: 5
+                        retry: 1
+                    - name: "check-all-running"
+                      type: "k8sProbe"
+                      k8sProbe/inputs:
+                        group: ""
+                        version: "v1"
+                        resource: "pods"
+                        namespace: "{{workflow.parameters.appNamespace}}"
+                        fieldSelector: "status.phase!=Running"
+                        labelSelector: "app.kubernetes.io/name={{workflow.parameters.appLabel}}"
+                        operation: "absent"
+                      mode: "OnChaos"
+                      runProperties:
+                        probeTimeout: 10
+                        interval: 5
+                        retry: 1
+                        probePollingInterval: 5000 # we want to check only once
+                        initialDelaySeconds: {{inputs.parameters.check-all-running-after-sec-of-chaos}}
+                  components:
+                    nodeSelector:
+                      kubernetes.io/os: linux
+                      role: "tools"
+                    tolerations:
+                      - key: tools
+                        operator: "Equal"
+                        value: "true"
+                        effect: NoSchedule
+                    statusCheckTimeouts:
+                      delay: 15
+                      timeout: 30
+                    env:
+                      - name: CHAOS_KILL_COMMAND
+                        value: "kill -9 $(ps afx | grep '[md5sum] /dev/zero' | awk '{print$1}' | tr '\n' ' ')"
+                      - name: TARGET_CONTAINER # For clarity; if not provided -> selects the 1st one on the pod(s)
+                        value: "{{workflow.parameters.appLabel}}"
+                      - name: TOTAL_CHAOS_DURATION
+                        value: "{{inputs.parameters.chaos-duration}}"
+                      - name: PODS_AFFECTED_PERC
+                        value: "{{inputs.parameters.pods-affected-perc}}"
+                      - name: INSTANCE_ID
+                        value: "{{inputs.parameters.experiment-id}}"
+
+    - name: count-workload-nodes
+      script:
+        image: michaelkubecourse/tools
+        command: [ /bin/sh ]
+        source: |
+          #!/bin/sh
+          set -e
+          kubectl get nodes -l role=workload -o=json | jq -r '.items | length'
+          exit 0
+        resources:
+          requests:
+            memory: 32Mi
+            cpu: 100m

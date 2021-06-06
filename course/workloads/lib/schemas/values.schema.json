@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Values",
+  "type": "object",
+  "properties": {
+    "appName": {
+      "description": "Microservice name",
+      "type": "string"
+    },
+    "namespace": {
+      "description": "Namespace of Microservice",
+      "type": "string"
+    },
+    "replicaCount": {
+      "description": "Number of Pods of Microservice",
+      "type": "integer"
+    },
+    "awsAccount": {
+      "description": "AWS account number",
+      "type": "integer"
+    },
+    "serviceAccount": {
+      "description": "The Service Account of the Pod.",
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "priorityClass": {
+      "description": "The named Priority Class of the Pod.",
+      "type": "object",
+      "required": [
+        "name"
+      ],
+      "properties": {
+        "name": {
+          "$ref": "#/$defs/priorityClass"
+        }
+      }
+    },
+    "containerPort": {
+      "description": "Port to use from the main container all the way to the CLusterIP service. It is covered by Ingress, so not exposed outside of the EKS cluster.",
+      "type": "integer"
+    },
+    "image": {
+      "description": "Main container image",
+      "type": "object",
+      "required": [
+        "repository",
+        "pullPolicy"
+      ],
+      "properties": {
+        "repository": {
+          "type": "string"
+        },
+        "pullPolicy": {
+          "$ref": "#/$defs/pullPolicy"
+        }
+      }
+    },
+    "ingress": {
+      "description": "Defines Ingress of the Microservice.",
+      "type": "object",
+      "required": [
+        "enabled"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "healthcheck": {
+          "type": "object"
+        },
+        "host": {
+          "type": "object",
+          "required": [
+            "paths"
+          ],
+          "properties": {
+            "paths": {
+              "type": "array"
+            }
+          }
+        }
+      }
+    },
+    "env" : {
+      "description": "Defines environment variables to be mapped to the MAIN container via ConfigMap.",
+      "type": "object"
+    },
+    "containerHealthChecks": {
+      "description": "Defines such probes as startupProbe, livenessProbe and readinessProbe for the main container of the Microservice.",
+      "type": "object",
+      "properties": {
+        "readinessProbe" : {
+          "type": "object"
+        },
+        "livenessProbe" :{
+          "type": "object"
+        },
+        "startupProbe" : {
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "resources": {
+      "description": "Defines such resources as cpu and memory for the main container of the Microservice.",
+      "type": "object",
+      "$ref": "#/$defs/resourcesProps"
+    },
+    "helmTest": {
+      "description": "Defines post-deployment Helm Test parameters for the chart.",
+      "type": "object",
+      "properties": {
+        "enabled" : {
+          "type": "boolean"
+        },
+        "command" :{
+          "type": "string"
+        },
+        "expectedCommandResult" : {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "resourcesProps": {
+      "properties": {
+        "limits" : {
+          "type": "object"
+        },
+        "requests" :{
+          "type": "object"
+        }
+      },
+      "additionalProperties": false
+    },
+    "pullPolicy": {
+      "enum": ["Always", "Never", "IfNotPresent"]
+    },
+    "priorityClass": {
+      "enum": [
+        "privileged",
+        "regular"
+      ]
+    }
+  },
+  "required": [
+    "appName",
+    "namespace",
+    "replicaCount",
+    "awsAccount",
+    "serviceAccount",
+    "priorityClass",
+    "containerPort",
+    "image",
+    "ingress",
+    "containerHealthChecks",
+    "resources",
+    "helmTest"
+  ]
+}

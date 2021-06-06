@@ -49,3 +49,18 @@ The expected result:
 cd /course/misc/initial_terraform_aws_test/
 ```
 After that, follow instructions in `/course/misc/initial_terraform_aws_test/README.md`
+
+# Amazon EKS Provisioning
+
+```shell
+cd /course/kube/
+```
+After that, follow instructions in `/course/kube/README.md`
+
+# Initial deployment of the "Basic Microservice" Helm chart
+
+```shell
+cd /course/workloads/basic
+```
+
+After that, follow instructions in `/course/workloads/basic/README.md`

@@ -1,0 +1,42 @@
+{{- define "lib.helmTest" }}
+{{- if .Values.helmTest.enabled }}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "helm-test-{{ .Values.appName }}"
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "helm-test.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-weight": "1"
+spec:
+  priorityClassName: regular
+  containers:
+    - name: main
+      image: michaelkubecourse/tools
+      imagePullPolicy: IfNotPresent
+      command:
+        - /bin/bash
+        - -c
+        - |
+          set -e
+          echo 'Checking {{ .Values.appName }}...'
+          command_result=$({{ .Values.helmTest.command }})
+          expected_result='{{ .Values.helmTest.expectedCommandResult }}'
+
+          echo "expected_result: ${expected_result}"
+          echo "command_result: ${command_result}"
+
+          if [ "${expected_result}" = "${command_result}" ]
+          then
+            echo 'Helm test has passed.'
+            exit 0
+          else
+            echo 'Helm test has failed.'
+            exit 2
+          fi
+
+  restartPolicy: Never
+{{- end }}
+{{- end }}

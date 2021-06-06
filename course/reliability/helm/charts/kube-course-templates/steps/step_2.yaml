@@ -1,0 +1,106 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: WorkflowTemplate
+metadata:
+  name: step2-templates
+  namespace: litmus
+spec:
+  templates:
+
+    - name: litmus-terminate-ec2
+      inputs:
+        parameters:
+          - name: chaos-duration
+          - name: chaos-interval
+          - name: probe-mode
+          - name: experiment-id
+          - name: ec2-instance-tag
+          - name: region
+          - name: http-probe-url
+      resource:
+        action: apply
+        manifest: |
+          apiVersion: litmuschaos.io/v1alpha1
+          kind: ChaosEngine
+          metadata:
+            name: engine-{{inputs.parameters.experiment-id}}
+            namespace: {{workflow.parameters.adminModeNamespace}}
+          spec:
+            appinfo:
+              appns: {{workflow.parameters.appNamespace}}
+              applabel: "app.kubernetes.io/name={{workflow.parameters.appLabel}}"
+              appkind: deployment
+            jobCleanUpPolicy: retain
+            monitoring: false
+            annotationCheck: 'false'
+            engineState: 'active'
+            chaosServiceAccount: litmus-admin
+            components:
+              runner:
+                nodeSelector:
+                  kubernetes.io/os: linux
+                  role: "tools"
+                tolerations:
+                  - key: tools
+                    operator: "Equal"
+                    value: "true"
+                    effect: NoSchedule
+            experiments:
+              - name: ec2-terminate-by-tag
+                spec:
+                  probe:
+                    - name: "check-hello-works"
+                      type: "httpProbe"
+                      httpProbe/inputs:
+                        url: "{{inputs.parameters.http-probe-url}}"
+                        insecureSkipVerify: false
+                        method:
+                          get:
+                            criteria: ==
+                            responseCode: "200"
+                      mode: {{inputs.parameters.probe-mode}} # EOT, Continuous
+                      runProperties:
+                        probeTimeout: 5
+                        interval: 5
+                        retry: 1
+                        probePollingInterval: 2
+                  components:
+                    nodeSelector:
+                      kubernetes.io/os: linux
+                      role: "tools"
+                    tolerations:
+                      - key: tools
+                        operator: "Equal"
+                        value: "true"
+                        effect: NoSchedule
+                    statusCheckTimeouts:
+                      delay: 15
+                      timeout: 180
+                    env:
+                      - name: TOTAL_CHAOS_DURATION
+                        value: "{{inputs.parameters.chaos-duration}}"
+                      - name: CHAOS_INTERVAL
+                        value: "{{inputs.parameters.chaos-interval}}"
+                      - name: INSTANCE_AFFECTED_PERC
+                        value: "0" # Defaults to 0 (corresponds to 1 instance)
+                      - name: INSTANCE_TAG
+                        value: "{{inputs.parameters.ec2-instance-tag}}"
+                      - name: MANAGED_NODEGROUP
+                        value: "enable"
+                      - name: REGION
+                        value: "{{inputs.parameters.region}}"
+                      - name: INSTANCE_ID
+                        value: "{{inputs.parameters.experiment-id}}"
+
+    - name: cmd
+      inputs:
+        parameters:
+          - name: cmd
+      script:
+        image: michaelkubecourse/tools
+        command: [ /bin/sh ]
+        source: "{{inputs.parameters.cmd}}"
+        resources:
+          requests:
+            memory: 32Mi
+            cpu: 100m
