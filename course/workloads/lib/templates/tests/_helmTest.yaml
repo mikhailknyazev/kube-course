@@ -12,6 +12,7 @@ metadata:
     "helm.sh/hook-weight": "1"
 spec:
   priorityClassName: regular
+  serviceAccountName: {{ .Values.helmTest.serviceAccountName }}
   containers:
     - name: main
       image: michaelkubecourse/tools

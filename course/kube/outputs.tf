@@ -53,3 +53,7 @@ output "tools_logical_role_name" {
 output "workload_logical_role_name" {
   value = local.workload_logical_role_name
 }
+
+output "helm_test_service_account_name" {
+  value = kubernetes_service_account.helm_test.metadata[0].name
+}

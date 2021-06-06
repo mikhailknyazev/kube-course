@@ -1,4 +1,4 @@
-{{- define "lib.advancedDeployment" }}
+{{- define "lib.advancedDeploymentForAutoscaling" }}
 {{- if .Values.createDeployment }}
 
 apiVersion: apps/v1
@@ -25,6 +25,14 @@ spec:
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
       priorityClassName: {{ .Values.priorityClass.name }}
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  {{- include "app.selectorLabels" . | nindent 18 }}
+                  app.kubernetes.io/version: {{ include "chart.version" . | quote }}
+              topologyKey: kubernetes.io/hostname
       topologySpreadConstraints:
         - labelSelector:
             matchLabels:

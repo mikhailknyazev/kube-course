@@ -324,3 +324,9 @@ argoui() {
   local argo_hostname=$(kubectl get ingress argo-server -n litmus -o json | jq -r '.status.loadBalancer.ingress[0].hostname')
   echo "  http://${argo_hostname}/workflows/litmus"
 }
+
+basicDns() {
+  echo 'The ALB-based URL for the "basic" microservice for the course:'
+  local basic_hostname=$(kubectl get ingress basic -n apps -o json | jq -r '.status.loadBalancer.ingress[0].hostname')
+  echo "  http://${basic_hostname}/hello?myName=MichaelK"
+}

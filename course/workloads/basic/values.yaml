@@ -22,7 +22,12 @@ image:
   pullPolicy: IfNotPresent
 
 ingress:
-  enabled: false
+  enabled: true
+  healthcheck:
+    path: "/hello"
+  host:
+    paths:
+      - "/hello"
 
 containerHealthChecks:
   readinessProbe:
@@ -57,5 +62,6 @@ horizontalPodAutoscaler:
 
 helmTest:
   enabled: true
-  command: "curl -sS -X GET http://basic.apps.svc.cluster.local:8080/hello?myName=MichaelK"
+  serviceAccountName: # defined by the deployment script
+  command: "set -x; basic_hostname=$(kubectl get ingress basic -n apps -o json | jq -r '.status.loadBalancer.ingress[0].hostname') && curl -sS -X GET http://${basic_hostname}/hello?myName=MichaelK"
   expectedCommandResult: "Hello MichaelK!"

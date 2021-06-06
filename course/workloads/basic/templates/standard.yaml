@@ -1,5 +1,5 @@
 ---
-{{- template "lib.advancedDeployment" . }}
+{{- template "lib.advancedDeploymentForAutoscaling" . }}
 ---
 {{- template "lib.serviceAccount" . }}
 ---
@@ -8,5 +8,5 @@
 {{- template "lib.service" . }}
 ---
 {{- template "lib.helmTest" . }}
-
-
+---
+{{- template "lib.ingress" . }}
