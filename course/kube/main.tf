@@ -35,9 +35,9 @@ module "kube" {
       asg_max_size = 1
 
       // Cost Savings
-//      asg_desired_capacity = 0
-//      asg_min_size = 0
-//      asg_max_size = 0
+      // asg_desired_capacity = 0
+      // asg_min_size = 0
+      // asg_max_size = 0
 
       public_ip            = true
       root_volume_type     = "gp2"
@@ -62,9 +62,9 @@ module "kube" {
       asg_max_size = 1
 
       // Cost Savings
-      //      asg_desired_capacity = 0
-      //      asg_min_size = 0
-      //      asg_max_size = 0
+      // asg_desired_capacity = 0
+      // asg_min_size = 0
+      // asg_max_size = 0
 
       public_ip            = true
       root_volume_type     = "gp2"
@@ -90,9 +90,9 @@ module "kube" {
       spot_allocation_strategy = "capacity-optimized"
 
       // Cost Savings
-      //      asg_desired_capacity = 0
-      //      asg_min_size = 0
-      //      asg_max_size = 0
+      // asg_desired_capacity = 0
+      // asg_min_size = 0
+      // asg_max_size = 0
 
       asg_desired_capacity = 1
       asg_min_size = 1
@@ -113,9 +113,9 @@ module "kube" {
       spot_allocation_strategy = "capacity-optimized"
 
       // Cost Savings
-      //      asg_desired_capacity = 0
-      //      asg_min_size = 0
-      //      asg_max_size = 0
+      // asg_desired_capacity = 0
+      // asg_min_size = 0
+      // asg_max_size = 0
 
       asg_desired_capacity = 1
       asg_min_size = 1
