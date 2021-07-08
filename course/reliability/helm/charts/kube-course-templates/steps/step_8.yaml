@@ -42,7 +42,7 @@ spec:
 
           echo "Updating the node-termination-handler helm chart to target 'spot-node-termination=exclusive' Nodes..."
           echo '****************************************'
-          helm upgrade -n kube-system aws-node-termination-handler https://aws.github.io/eks-charts/aws-node-termination-handler-0.15.0.tgz --reuse-values \
+          helm upgrade -n kube-system aws-node-termination-handler https://aws.github.io/eks-charts/aws-node-termination-handler-0.15.1.tgz --reuse-values \
             --wait --set "nodeSelector.spot-node-termination=exclusive" --set "instanceMetadataURL=http://ec2-metadata-mock.kube-system.svc.cluster.local:1338"
           echo '****************************************'
           echo
@@ -93,7 +93,7 @@ spec:
           echo
           echo "Restoring the node-termination-handler helm chart to target 'spot-node-termination=regular' Nodes..."
           echo '****************************************'
-          helm upgrade -n kube-system aws-node-termination-handler https://aws.github.io/eks-charts/aws-node-termination-handler-0.15.0.tgz --reuse-values \
+          helm upgrade -n kube-system aws-node-termination-handler https://aws.github.io/eks-charts/aws-node-termination-handler-0.15.1.tgz --reuse-values \
             --wait --set "nodeSelector.spot-node-termination=regular" --set "instanceMetadataURL=http://169.254.169.254:80"
           echo '****************************************'
           echo

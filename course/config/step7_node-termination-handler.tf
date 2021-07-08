@@ -9,7 +9,7 @@ resource "helm_release" "aws_node_termination_handler" {
   chart      = "aws-node-termination-handler"
   // See: https://aws.github.io/eks-charts/index.yaml
   repository = "https://aws.github.io/eks-charts"
-  version    = "0.15.0"
+  version    = "0.15.1"
   namespace  = "kube-system"
   values = [templatefile(
   "${path.module}/helm/values/node-termination-handler.yaml",

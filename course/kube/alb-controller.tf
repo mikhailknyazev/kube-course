@@ -9,7 +9,7 @@ resource "helm_release" "aws_load_balancer_controller" {
   // See: https://aws.github.io/eks-charts/index.yaml
   repository = "https://aws.github.io/eks-charts"
   // See: https://github.com/aws/eks-charts/tree/master/stable/aws-load-balancer-controller
-  version    = "1.2.0"
+  version    = "1.2.3"
   namespace  = "kube-system"
   values = [templatefile(
   "${path.module}/helm/values/aws-alb-controller.yaml",
@@ -26,7 +26,7 @@ resource "helm_release" "aws_load_balancer_controller" {
 
 module "iam_assumable_aws_alb_controller_role" {
   source                        = "terraform-aws-modules/iam/aws//modules/iam-assumable-role-with-oidc"
-  version                       = "~> 4.1.0"
+  version                       = "~> 4.2.0"
   create_role                   = true
   role_name                     = "aws-alb-controller-role-${local.cluster_name}"
   provider_url                  = module.kube.cluster_oidc_issuer_url

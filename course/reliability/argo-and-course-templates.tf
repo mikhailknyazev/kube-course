@@ -6,24 +6,28 @@ locals {
 
 }
 
+// https://github.com/argoproj/argo-helm/tree/master/charts/argo-workflows
 // https://artifacthub.io/packages/helm/argo/argo
 resource "helm_release" "argo" {
   name       = local.argo_name
   namespace  = local.litmus_namespace
 
-  chart      = "argo"
+  chart      = "argo-workflows"
   // Note: https://argoproj.github.io/argo-helm/index.yaml
   repository = "https://argoproj.github.io/argo-helm"
-  version    = "0.16.10"
+  version    = "0.2.6"
 
   values = [templatefile(
   "${path.module}/helm/values/argo.yaml",
   {
+    name_override = local.argo_name
     tools_logical_role_name = local.tools_logical_role_name
     workflow_service_account_name = local.argo_chaos_sa_name
     cluster_name = local.cluster_name
   }
   )]
+
+  depends_on = [kubernetes_service_account.argo_chaos, module.iam_assumable_argo_chaos_role]
 
   provisioner "local-exec" {
     when    = destroy
@@ -89,7 +93,7 @@ resource "kubernetes_ingress" "argo_server_ingress" {
 
 module "iam_assumable_argo_chaos_role" {
   source                        = "terraform-aws-modules/iam/aws//modules/iam-assumable-role-with-oidc"
-  version                       = "~> 4.1.0"
+  version                       = "~> 4.2.0"
   create_role                   = true
   role_name                     = "argo-chaos-role-${local.cluster_name}"
   provider_url                  = data.terraform_remote_state.kube.outputs.cluster_oidc_issuer_url
