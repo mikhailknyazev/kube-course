@@ -17,7 +17,7 @@ resource "helm_release" "kubernetes_dashboard" {
   chart      = "kubernetes-dashboard"
   // https://kubernetes.github.io/dashboard/index.yaml
   repository = "https://kubernetes.github.io/dashboard"
-  version    = "4.2.0"
+  version    = "4.3.1"
 
   values = [templatefile(
   "${path.module}/helm/values/dashboard.yaml",
