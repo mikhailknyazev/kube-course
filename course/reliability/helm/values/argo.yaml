@@ -2,12 +2,27 @@
 images:
   pullPolicy: IfNotPresent
 
+init:
+  # By default the installation will not set an explicit one, which will mean it uses `default` for the namespace the chart is
+  # being deployed to.  In RBAC clusters, that will almost certainly fail.  See the NOTES: section of the readme for more info.
+  serviceAccount: argo-chaos
+
+nameOverride: ${name_override}
+fullnameOverride: ${name_override}
+
 workflow:
   namespace: ""  # Specify namespace if workflows run in another namespace than argo. This controls where the service account and RBAC resources will be created.
 
 controller:
-  serviceAccount: argo
+  serviceAccount:
+    create: true
+    name: argo
+
   name: workflow-controller
+
+  workflowNamespaces:
+    - litmus
+
   logging:
     level: info
     globallevel: "0"
@@ -26,10 +41,10 @@ server:
   serviceType: ClusterIP
   servicePort: 2746
   # servicePortName: http
-  serviceAccount: argo-server
-  # Whether to create the service account with the name specified in
-  # server.serviceAccount and bind it to the server role.
-  createServiceAccount: true
+  serviceAccount:
+    create: true
+    name: argo-server
+
   replicas: 1
 
   nodeSelector:
