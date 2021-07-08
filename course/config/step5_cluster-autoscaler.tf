@@ -34,7 +34,7 @@ resource "helm_release" "cluster_autoscaler" {
 
 module "iam_assumable_cluster_autoscaler_role" {
   source                        = "terraform-aws-modules/iam/aws//modules/iam-assumable-role-with-oidc"
-  version                       = "~> 4.1.0"
+  version                       = "~> 4.2.0"
   create_role                   = true
   role_name                     = "cluster-autoscaler-role-${local.cluster_name}"
   provider_url                  = data.terraform_remote_state.kube.outputs.cluster_oidc_issuer_url
