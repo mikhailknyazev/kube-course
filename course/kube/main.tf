@@ -16,13 +16,14 @@ module "vpc" {
 
 module "kube" {
   source          = "terraform-aws-modules/eks/aws"
-  version         = "16.1.0"
+  version         = "17.1.0"
   cluster_version = "1.20"
   cluster_name    = local.cluster_name
-  config_output_path = "./config"
   subnets         = module.vpc.public_subnets
   vpc_id          = module.vpc.vpc_id
   enable_irsa     = true
+  kubeconfig_output_path = "./config"
+  kubeconfig_file_permission = "0644"
 
   worker_groups_launch_template = [
     {
