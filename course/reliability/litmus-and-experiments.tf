@@ -22,7 +22,7 @@ resource "helm_release" "litmus" {
   chart      = "litmus"
   // Note: https://litmuschaos.github.io/litmus-helm/index.yaml
   repository = "https://litmuschaos.github.io/litmus-helm"
-  version    = "1.14.0"
+  version    = "1.15.0"
 
   values = [templatefile(
   "${path.module}/helm/values/litmus.yaml",
@@ -45,7 +45,6 @@ resource "helm_release" "kube_course_litmus_experiments" {
   namespace  = local.litmus_namespace
   chart      = "${path.module}/helm/charts/kube-course-litmus-experiments"
 
-  // TODO MKN: docu / mention in the Course
   provisioner "local-exec" {
     command = "/course/reliability/init-secret-for-aws-experiments.sh"
   }
