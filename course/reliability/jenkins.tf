@@ -23,7 +23,7 @@ resource "helm_release" "jenkins" {
   chart      = "jenkins"
   // See: https://charts.jenkins.io/index.yaml
   repository = "https://charts.jenkins.io"
-  version    = "3.3.15"
+  version    = "3.5.1"
 
   values = [templatefile(
   "${path.module}/helm/values/jenkins.yaml",
