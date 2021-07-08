@@ -113,7 +113,6 @@ doHelm() {
     deploy)
       echo "DEPLOYING..."
 
-      #// TODO MKN: comment more on the "no-Deployment-before-Ingress fix" here
       if ! kubectl get deployment "${svc_name}" --namespace=${namespace} &> /dev/null
       then
         echo "Deployment of '${svc_name}' not found, so we first run 'helm upgrade' without Deployment..."
