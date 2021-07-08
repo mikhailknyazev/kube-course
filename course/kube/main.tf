@@ -16,13 +16,14 @@ module "vpc" {
 
 module "kube" {
   source          = "terraform-aws-modules/eks/aws"
-  version         = "16.1.0"
+  version         = "17.1.0"
   cluster_version = "1.20"
   cluster_name    = local.cluster_name
-  config_output_path = "./config"
   subnets         = module.vpc.public_subnets
   vpc_id          = module.vpc.vpc_id
   enable_irsa     = true
+  kubeconfig_output_path = "./config"
+  kubeconfig_file_permission = "0644"
 
   worker_groups_launch_template = [
     {
@@ -35,9 +36,9 @@ module "kube" {
       asg_max_size = 1
 
       // Cost Savings
-      // asg_desired_capacity = 0
-      // asg_min_size = 0
-      // asg_max_size = 0
+//      asg_desired_capacity = 0
+//      asg_min_size = 0
+//      asg_max_size = 0
 
       public_ip            = true
       root_volume_type     = "gp2"
@@ -62,9 +63,9 @@ module "kube" {
       asg_max_size = 1
 
       // Cost Savings
-      // asg_desired_capacity = 0
-      // asg_min_size = 0
-      // asg_max_size = 0
+      //      asg_desired_capacity = 0
+      //      asg_min_size = 0
+      //      asg_max_size = 0
 
       public_ip            = true
       root_volume_type     = "gp2"
@@ -90,9 +91,9 @@ module "kube" {
       spot_allocation_strategy = "capacity-optimized"
 
       // Cost Savings
-      // asg_desired_capacity = 0
-      // asg_min_size = 0
-      // asg_max_size = 0
+      //      asg_desired_capacity = 0
+      //      asg_min_size = 0
+      //      asg_max_size = 0
 
       asg_desired_capacity = 1
       asg_min_size = 1
@@ -113,9 +114,9 @@ module "kube" {
       spot_allocation_strategy = "capacity-optimized"
 
       // Cost Savings
-      // asg_desired_capacity = 0
-      // asg_min_size = 0
-      // asg_max_size = 0
+      //      asg_desired_capacity = 0
+      //      asg_min_size = 0
+      //      asg_max_size = 0
 
       asg_desired_capacity = 1
       asg_min_size = 1

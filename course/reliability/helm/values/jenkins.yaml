@@ -16,7 +16,7 @@ controller:
   jenkinsUriPrefix: "/jenkins"
 
   additionalPlugins:
-    - workflow-multibranch:2.24
+    - workflow-multibranch:2.26
 
   nodeSelector:
     role: ${tools_logical_role_name}
