@@ -17,7 +17,7 @@
     },
     "awsAccount": {
       "description": "AWS account number",
-      "type": "integer"
+      "type": "string"
     },
     "serviceAccount": {
       "description": "The Service Account of the Pod.",
