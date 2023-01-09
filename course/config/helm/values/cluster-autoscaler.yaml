@@ -57,11 +57,11 @@ extraArgs:
 
 resources:
   limits:
-    cpu: 200m
-    memory: 400Mi
+    cpu: 400m
+    memory: 800Mi
   requests:
-    cpu: 200m
-    memory: 400Mi
+    cpu: 400m
+    memory: 800Mi
 
 #extraEnv:
 #  http_proxy:
